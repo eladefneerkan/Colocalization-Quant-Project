@@ -1,15 +1,3 @@
-'''
-OTHER LANGUAGE:
-// run() tells Fiji to execute in one of the menu operations
-open("/Users/lucialiu/Downloads/10_29_2025_fxr1_157W_PK/PK2_WT.czi"); // open image
-run("Split Channels");
-run("8-bit"); // basically convert to gray-scale 2^8 = 256
-setAutoThreshold("Default dark"); // set default slider + dark background
-setOption("BlackBackground", true); // checks black background as true for the popup
-run("Convert to Mask", "method=Default background=Dark"); // convert thresholded image to binary mask
-//run("Grays");
-'''
-
 from ij import IJ
 from ij.process import ImageProcessor
 
