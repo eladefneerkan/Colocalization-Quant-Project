@@ -1,0 +1,30 @@
+# ---- Fiji / ImageJ specific ----
+Fiji.app/
+ImageJ.app/
+jars/
+plugins/
+scripts/.ijm.backup/
+*.class
+*.jar
+
+# ---- Python (Jython) script caches ----
+*.pyc
+__pycache__/
+
+# ---- OS junk ----
+.DS_Store
+Thumbs.db
+
+# ---- Editor junk ----
+*.swp
+*.swo
+*.tmp
+*.bak
+*~
+.idea/
+.vscode/
+
+# ---- Build artifacts (if mixing Java code) ----
+target/
+bin/
+out/
