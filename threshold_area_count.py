@@ -1,6 +1,13 @@
+# Author: Lucia Liu
+# Purpose: Finds the number of particles and area of each particle for each channel in a .czi file
+# Notes: Image that is dragged in must be multi-channel
+# Last edited: 12/14/25
+
 from ij import IJ, WindowManager, ImagePlus
 from ij.io import DirectoryChooser, FileSaver
 from ij.measure import ResultsTable
+from ij.gui import Plot
+import os
 
 # Choose directory
 dc = DirectoryChooser("Choose folder to save output files in.")
@@ -13,7 +20,58 @@ if output_dir is None:
 imp = IJ.getImage()  # gets dragged-in image
 
 if not imp.getTitle().lower().endswith(".czi"):
-    raise ValueError("Incompatible file type - must be a .czi file")
+    raise ValueError("Incompatible file type - must be a multichannel .czi file")
 
 IJ.run(imp, "Split Channels", "")
 image_titles = WindowManager.getImageTitles()
+
+'''
+def graph_histogram(rt):
+	area = rt.getColumnAsDoubles(rt.getColumnIndex("Area"))
+	plot = Plot("Raw Distribution of Areas", "Area", "Frequency")
+	plot.addHistogram(area)
+	plot.show()
+'''
+
+# Process images
+for title in image_titles:
+    image = WindowManager.getImage(title)
+
+    fs = FileSaver(image)
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_original.tif")  # save original image
+
+    dup = image.duplicate()  # create duplicate so we keep the original image
+    dup.show()
+    WindowManager.setCurrentWindow(dup.getWindow())
+
+    # apply threshold
+    IJ.run("8-bit")
+    IJ.run("Auto Threshold", "method=Default dark")
+    IJ.run("Convert to Mask", "method=Default background=Dark")
+
+    fs = FileSaver(dup)
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_thresholded.tif")  # save thresholded image
+
+    # set measurements
+    IJ.run(dup, "Set Measurements...", "area mean redirect=[" + image.getTitle() + "]")
+
+    # analyze particles
+    IJ.run(dup, "Analyze Particles...", "show=Outlines display exclude redirect=[" + image.getTitle() + "]")
+    # Outlines = shows image w/ outline and numbered particles
+    # display = makes table of list of areas for each particle in an image
+    # summarize = summarizes data (count, total area, avg size, % area) for each image
+    # exclude = excludes the particles on the edges (since their real size might be bigger/smaller --> not accurate)
+
+    outline_img = WindowManager.getCurrentImage()
+    fs = FileSaver(outline_img)
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_outline.tif")  # save outline image
+
+    rt = ResultsTable.getResultsTable()
+    rt.save(output_dir + title.replace(".czi", "") + "_results.csv")
+    # graph_histogram(rt)
+    rt.reset()
+
+# save summary
+
+# summary = ResultsTable.getResultsTable("Summary")
+# summary.save(output_dir + imp.getTitle().replace(".czi", "") + "_summary.csv")
