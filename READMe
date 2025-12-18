@@ -1,0 +1,79 @@
+PROQUANT
+Stress Granule Quantification – Fiji / ImageJ 
+
+This script runs a two-part analysis on a multichannel image (e.g. .czi opened with Bio-Formats):
+    WekaSegmentation to classify and isolate the SG class, then analyze those particles.
+    A generic threshold + Analyze Particles pipeline on each channel, saving originals, masks, outlines, and summary tables.
+
+REQUIREMENTS
+    Fiji (ImageJ)
+    Trainable Weka Segmentation
+    Bio-Formats plugin (to open .czi hyperstacks)
+    BIOP Plugin
+    A trained Weka classifier model file
+    Images should be Opened as a hyperstack (multi-channel).
+
+SCRIPT SETUP
+    Open Fiji.
+    Go to File → New → Script... and choose Python as the language.
+    Paste the combined script into the editor.
+    Alternativaly, drag the saved script file into Fiji window.
+
+    Edit the "Settings" section at the top of the script.
+
+OPEN THE IMAGE
+
+    File → Import → Bio-Formats Importer....
+    Select your .czi file and import as a hyperstack (don’t split channels here; the script will do it if needed).
+    Color selection should be "Default"
+    Don't close image window after opening.
+
+    The script always works on the currently active image.
+
+RUN THE SCRIPT
+    Script Editor (window that has the script) --> Run.
+    A prompt will appear: “Choose folder to save output files in.”
+    Select (or create) a folder where all output files will go.
+    (Images won't be put into a single folder by default, they will be saved individually.)
+    
+    If there are no errors while running the script, it will do the following:
+
+        Load your classifier from CLASSIFIER_PATH.
+        Apply the classifier to the hyperstack.
+        Convert the result to 8-bit.
+        Threshold to isolate class SG_MIN–SG_MAX (the SG class).
+        Convert this thresholded result into a binary mask.
+        Run Analyze Particles on the SG mask.
+        If the image has multiple channels, the script does Split Channels.
+        For each channel image, repeat the process.
+        Subtract Background
+        Auto Threshold (MaxEntropy)
+        Convert to Mask
+        Save the thresholded mask.
+        Set measurements
+        Run Analyze Particles
+        Save results
+        Close intermediate windows and the results table.
+
+
+OUTPUTS
+
+In your chosen output folder you should see some or all of the following:
+    image_weka_seg_SG_mask.tif
+    image_weka_seg_SG_outlines.tif
+    image_SG_results.csv
+    C1-originalname_original.tif
+    C1-originalname_thresholded.tif
+    C1-originalname_outline.tif
+    C1-originalname_results.csv
+    image_summary.csv – summary stats across all processed channel images.
+
+
+NOTES
+    Batch across multiple files: this script processes the current image. To batch, you can open each file and run the script manually, or wrap this code in a loop that opens each .czi from a folder and calls the same logic.
+    Calibration: if pixel size is set in Fiji (Image → Properties...), MIN_PARTICLE_SIZE is in µm²; otherwise it’s in pixels.
+    If the script can’t find your classifier, double-check the exact path in CLASSIFIER_PATH.
+
+    You can use the pre trained model provided in this repository. Or, you can train your own multi-channel model.
+    The model should have three classes, and be trained for each channel.
+        SG (overlapping granules), Background, and non-SG (noise)
