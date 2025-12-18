@@ -5,6 +5,8 @@ This script runs a two-part analysis on a multichannel image (e.g. .czi opened w
     WekaSegmentation to classify and isolate the SG class, then analyze those particles.
     A generic threshold + Analyze Particles pipeline on each channel, saving originals, masks, outlines, and summary tables.
 
+OPEN THIS DOCUMENT FOR SETUP STEPS IN MORE DETAIL: https://docs.google.com/document/d/1LddGeinezqy1mFObRH97KktDf0Yw5B5b-PXoQ7Ka2J4/edit?usp=sharing
+
 REQUIREMENTS
     Fiji (ImageJ)
     Trainable Weka Segmentation
