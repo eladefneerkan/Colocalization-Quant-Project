@@ -1,7 +1,7 @@
 # Author: Lucia Liu
 # Purpose: Finds the number of particles and area of each particle for each channel in a .czi file
 # Notes: Image that is dragged in must be multi-channel
-# Last edited: 12/16/25
+# Last edited: 12/17/25
 
 from ij import IJ, WindowManager, ImagePlus
 from ij.io import DirectoryChooser, FileSaver
@@ -19,19 +19,14 @@ if output_dir is None:
 # Get input image
 imp = IJ.getImage()  # gets dragged-in image
 
-if not imp.getTitle().lower().endswith(".czi"):
-    raise ValueError("Incompatible file type - must be a multichannel .czi file")
+# if not imp.getTitle().lower().endswith(".czi"):
+# raise ValueError("Incompatible file type - must be a multichannel .czi file")
 
-IJ.run(imp, "Split Channels", "")
-image_titles = WindowManager.getImageTitles()
-
-'''
-def graph_histogram(rt):
-	area = rt.getColumnAsDoubles(rt.getColumnIndex("Area"))
-	plot = Plot("Raw Distribution of Areas", "Area", "Frequency")
-	plot.addHistogram(area)
-	plot.show()
-'''
+if imp.getNChannels() == 1:
+    image_titles = [imp.getTitle()]
+else:
+    IJ.run(imp, "Split Channels", "")
+    image_titles = WindowManager.getImageTitles()
 
 # Process images
 for title in image_titles:
@@ -47,7 +42,7 @@ for title in image_titles:
     # apply threshold
     IJ.run("8-bit")
     IJ.run("Subtract Background...", "rolling=50")
-    IJ.run("Auto Threshold", "method=Otsu white")
+    IJ.run("Auto Threshold", "method=MaxEntropy")
     IJ.run("Convert to Mask")
 
     fs = FileSaver(dup)
@@ -68,7 +63,6 @@ for title in image_titles:
     # display = makes table of list of areas for each particle in an image
     # summarize = summarizes data (count, total area, avg size, % area) for each image
     # exclude = excludes the particles on the edges (since their real size might be bigger/smaller --> not accurate)
-    # add = add ROIs (Region of Interest) to ROI Manager
 
     outline_img = WindowManager.getCurrentImage()
     fs = FileSaver(outline_img)
