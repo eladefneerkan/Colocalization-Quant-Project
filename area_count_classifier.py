@@ -53,7 +53,7 @@ from ij import WindowManager as WM
 
 if SAVE_SG_OUTPUT:
     # SG mask
-    mask_path = os.path.join(output_dir, weka_title + "_SG_mask.tif")
+    mask_path = os.path.join(output_dir, weka_title.replace(".czi", "") + "_SG_mask.tif")
     IJ.saveAs(weka_result, "Tiff", mask_path)
 
     # SG outlines
@@ -61,12 +61,12 @@ if SAVE_SG_OUTPUT:
     for title in WM.getImageTitles():
         if title.startswith("Drawing of " + weka_title):
             outlines_imp = WM.getImage(title)
-            outlines_path = os.path.join(output_dir, weka_title + "_SG_outlines.tif")
+            outlines_path = os.path.join(output_dir, weka_title.replace(".czi", "") + "_SG_outlines.tif")
             IJ.saveAs(outlines_imp, "Tiff", outlines_path)
             break
 
     # SG results table
-    csv_path = os.path.join(output_dir, imp.getTitle() + "_SG_results.csv")
+    csv_path = os.path.join(output_dir, imp.getTitle().replace(".czi", "") + "_SG_results.csv")
     IJ.saveAs("Results", csv_path)
 
 # close Weka images & results to avoid clutter / cross-contamination
