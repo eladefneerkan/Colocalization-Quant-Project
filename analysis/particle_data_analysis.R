@@ -1,5 +1,5 @@
 # Name: Lucia Liu
-# Last Edited: 12/16/25
+# Last Edited: 12/19/25
 
 library(dplyr)
 library(ggplot2)
@@ -9,8 +9,16 @@ BY_AREA <- 0.5
 BINWIDTH_BRIGHTNESS <- 2500
 BY_BRIGHTNESS <- 2500
 
-# input your csv pathname below
-df <- read.csv('/Users/lucialiu/Downloads/10_29_2025_fxr1_157W_PK/test output/C1-PK2_WT_results.csv')
+dark_blue <- "#12436D"
+teal <- "#28A197"
+orange <- "#F46A25"
+lavender <- "#A285D1"
+dark_red <- "#801650"
+light_blue <- "#6BACE6"
+medium_blue <- "#2073BC"
+
+# Input your csv pathname below
+df <- read.csv('______PATHNAME HERE______')
 
 # Plotting Methods
 plot_histogram <- function(dataset, x_var, x_name, fill_color, title, bin_width, x_tick_break) {
@@ -18,7 +26,7 @@ plot_histogram <- function(dataset, x_var, x_name, fill_color, title, bin_width,
     theme_bw() +
     geom_histogram(color = "white", fill = fill_color, binwidth = bin_width) +
     theme(plot.title = element_text(hjust = 0.5),
-          text = element_text(size = 16),
+          text = element_text(size = 18),
           axis.text.x = element_text(size = 11, angle = 45, hjust = 1)) +
     labs(x = x_name,
          y = "Frequency",
@@ -32,16 +40,14 @@ plot_scatterplot <- function(dataset, dot_color, cell_type) {
     theme_bw() +
     geom_point(color = dot_color) +
     theme(plot.title = element_text(hjust = 0.5),
-          text = element_text(size = 16)) +
-    labs(x = 'Area',
-         y = "Mean Brightness",
-         title = paste('Relationship between Area and Mean Brightness of', cell_type)) +
+          text = element_text(size = 18)) +
+    labs(x = 'Area (µm^2)',
+         y = "Mean Gray Value",
+         title = paste('Relationship between Area and Intensity of', cell_type)) +
     scale_x_continuous(breaks = seq(0, max(dataset$Area), by = 1))
 }
 
 # Graph plots (run one at a time)
-plot_histogram(df, Area, 'Area', 'red', 'Raw Distribution of Channel 1 Stress Granule Area', BINWIDTH_AREA, BY_AREA)
-plot_histogram(df, Mean, 'Mean Brightness', 'blue', 'Raw Distribution of Channel 1 Stress Granule Brightness', BINWIDTH_BRIGHTNESS, BY_BRIGHTNESS)
-plot_scatterplot(df, 'blue4', 'PK2 WT Channel 1')
-
-# filter out noise: < 0.14??
+plot_histogram(df, Area, 'Area (µm^2)', light_blue, 'Distribution of ______ Particle Areas', BINWIDTH_AREA, BY_AREA)
+plot_histogram(df, Mean, 'Mean Gray Value', teal, 'Distribution of ______ Intensity', BINWIDTH_BRIGHTNESS, BY_BRIGHTNESS)
+plot_scatterplot(df, dark_blue, '_________')
