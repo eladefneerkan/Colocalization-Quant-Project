@@ -9,8 +9,13 @@ from ij.measure import ResultsTable
 from ij.gui import Overlay, Roi
 from ij.plugin.frame import RoiManager
 
-IMG_MAX = 75  # lower max to brighten image
-THRESHOLD_MIN = 20  # lower threshold to recognize more particles
+C0_IMG_MAX = 75  # lower max to brighten image
+C0_THRESHOLD_MIN = 20  # lower threshold to recognize more particles
+C0_FILTER_MIN = 0.1
+
+C1_IMG_MAX = 40  # lower max to brighten image
+C1_THRESHOLD_MIN = 5  # lower threshold to recognize more particles
+C1_FILTER_MIN = 2
 
 
 def adjust_brightness(image, max):
@@ -33,7 +38,7 @@ def apply_threshold(image, min):
     return image
 
 
-def analyze_particles(image):
+def analyze_particles(image, min_size, channel_num):
     # set measurements
     IJ.run(image, "Set Measurements...", "area mean redirect=[" + image.getTitle() + "]")
     # redirect to original image (to get the mean gray value)
@@ -41,15 +46,22 @@ def analyze_particles(image):
     # mean = mean gray value (brightness aka intensity)
 
     # analyze particles
-    IJ.run(image, "Analyze Particles...",
-           "size=0.1-Infinity show=Outlines add display summarize include exclude redirect=[" + image.getTitle() + "]")
-    # 0.1-Infinity = filters out noise, only counts particles greater than 0.1 µm^2
-    # Outlines = shows image w/ outline and numbered particles
-    # add = add to ROI manager
-    # display = makes table of list of areas for each particle in an image
-    # summarize = summarizes data (count, total area, avg size, % area) for each image
-    # exclude = excludes the particles on the edges (since their real size might be bigger/smaller --> not accurate)
-    # include = include holes
+    if channel_num == 0:
+        IJ.run(image, "Analyze Particles...",
+               "size={}-Infinity show=Outlines add display summarize include exclude redirect=[{}]".format(min_size,
+                                                                                                           image.getTitle()))
+        # 0.1-Infinity = filters out noise, only counts particles greater than 0.1 µm^2
+        # Outlines = shows image w/ outline and numbered particles
+        # add = add to ROI manager
+        # display = makes table of list of areas for each particle in an image
+        # summarize = summarizes data (count, total area, avg size, % area) for each image
+        # exclude = excludes the particles on the edges (since their real size might be bigger/smaller --> not accurate)
+        # include = include holes
+    elif channel_num == 1:
+        IJ.run(image, "Analyze Particles...",
+               "size={}-Infinity show=Outlines add display summarize redirect=[{}]".format(min_size, image.getTitle()))
+    else:
+        return None
 
     outline = WindowManager.getCurrentImage()
 
@@ -64,6 +76,56 @@ def analyze_particles(image):
     summary = ResultsTable.getResultsTable("Summary")
 
     return outline, overlay, results, summary
+
+
+def analyze_channel(channel_num, image_titles, img_max, threshold_min, filter_min, output_dir):
+    title = image_titles[channel_num]  # 2nd channel
+    image = WindowManager.getImage(title)
+
+    fs = FileSaver(image)
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_original.tif")  # save original image
+
+    # adjust brightness
+    edited_image = adjust_brightness(image, img_max)
+    fs = FileSaver(edited_image)
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_edited.tif")  # save image with adjusted brightness
+
+    # create duplicate to apply threshold
+    dup = image.duplicate()
+    dup.show()
+    WindowManager.setCurrentWindow(dup.getWindow())
+
+    # apply threshold
+    apply_threshold(dup, threshold_min)
+    fs = FileSaver(dup)
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_thresholded.tif")
+
+    # analyze particles
+    outline, overlay, results, summary = analyze_particles(dup, filter_min, channel_num)
+    edited_image.setOverlay(overlay)
+    edited_image.updateAndDraw()
+    flattened = edited_image.flatten()
+
+    # save results
+    fs = FileSaver(flattened)
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_overlay.tif")
+    fs = FileSaver(outline)
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_outline.tif")
+    results.save(output_dir + title.replace(".czi", "") + "_results.csv")
+    results.reset()
+
+    # close windows
+    image.changes = False
+    image.close()
+    dup.changes = False
+    dup.close()
+    outline.changes = False
+    outline.close()
+    results_window = WindowManager.getFrame("Results")
+    if results_window is not None:
+        results_window.close()
+
+    return summary
 
 
 def main():
@@ -83,55 +145,12 @@ def main():
         IJ.run(imp, "Split Channels", "")
         image_titles = WindowManager.getImageTitles()
 
-    title = image_titles[0]  # 1st channel
-    image = WindowManager.getImage(title)
+    analyze_channel(0, image_titles, C0_IMG_MAX, C0_THRESHOLD_MIN, C0_FILTER_MIN, output_dir)
+    summary = analyze_channel(1, image_titles, C1_IMG_MAX, C1_THRESHOLD_MIN, C1_FILTER_MIN, output_dir)
 
-    fs = FileSaver(image)
-    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_original.tif")  # save original image
-
-    # adjust brightness
-    edited_image = adjust_brightness(image, IMG_MAX)
-    fs = FileSaver(edited_image)
-    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_edited.tif")  # save image with adjusted brightness
-
-    # create duplicate to apply threshold
-    dup = image.duplicate()
-    dup.show()
-    WindowManager.setCurrentWindow(dup.getWindow())
-
-    # apply threshold
-    apply_threshold(dup, THRESHOLD_MIN)
-    fs = FileSaver(dup)
-    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_thresholded.tif")
-
-    # analyze particles
-    outline, overlay, results, summary = analyze_particles(dup)
-    edited_image.setOverlay(overlay)
-    edited_image.updateAndDraw()
-    flattened = edited_image.flatten()
-
-    # save results
-    fs = FileSaver(flattened)
-    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_overlay.tif")
-    fs = FileSaver(outline)
-    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_outline.tif")
-    results.save(output_dir + title.replace(".czi", "") + "_results.csv")
-    results.reset()
     summary.save(output_dir + imp.getTitle().replace(".czi", "") + "_summary.csv")
-
-    # close windows
-    image.changes = False
-    image.close()
-    dup.changes = False
-    dup.close()
-    outline.changes = False
-    outline.close()
-    results_window = WindowManager.getFrame("Results")
-    if results_window is not None:
-        results_window.close()
     summary_window = WindowManager.getFrame("Summary")
     if summary_window is not None:
         summary_window.close()
-
 
 main()
