@@ -27,6 +27,7 @@ def apply_threshold(image, min):
     ip.setThreshold(min, 255)
     image.updateAndDraw()
     IJ.run("Convert to Mask")
+    return image
 
 
 def analyze_particles(image):
@@ -35,23 +36,31 @@ def analyze_particles(image):
     # redirect to original image (to get the mean gray value)
     # area = area of particle in micrometers
     # mean = mean gray value (brightness aka intensity)
-    # centroid = average x and y center of particle
 
     # analyze particles
     IJ.run(image, "Analyze Particles...",
-           "size=0.1-Infinity add display summarize exclude redirect=[" + image.getTitle() + "]")
+           "size=0.1-Infinity show=Outlines add display summarize include exclude redirect=[" + image.getTitle() + "]")
     # 0.05-Infinity = filters out noise, only counts particles greater than 0.05
+    # Outlines = shows image w/ outline and numbered particles
     # add = add to ROI manager
     # display = makes table of list of areas for each particle in an image
     # summarize = summarizes data (count, total area, avg size, % area) for each image
     # exclude = excludes the particles on the edges (since their real size might be bigger/smaller --> not accurate)
+    # include = include holes
+
+    outline = WindowManager.getCurrentImage()
 
     overlay = Overlay()
     rm = RoiManager.getInstance()
     for roi in rm.getRoisAsArray():
         overlay.add(roi)
+    rm.reset()
+    rm.setVisible(False)
 
-    return overlay
+    results = ResultsTable.getResultsTable()
+    summary = ResultsTable.getResultsTable("Summary")
+
+    return outline, overlay, results, summary
 
 
 def main():
@@ -81,17 +90,44 @@ def main():
     fs = FileSaver(edited_image)
     fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_edited.tif")  # save image with adjusted brightness
 
-    # create duplicate to edit on
+    # create duplicate to apply threshold
     dup = image.duplicate()
     dup.show()
     WindowManager.setCurrentWindow(dup.getWindow())
 
     # apply threshold
     apply_threshold(dup, 75)
-    overlay = analyze_particles(dup)
+    fs = FileSaver(dup)
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_thresholded.tif")
 
+    # analyze particles
+    outline, overlay, results, summary = analyze_particles(dup)
     image.setOverlay(overlay)
     image.updateAndDraw()
+    flattened = image.flatten()
+
+    # save results
+    fs = FileSaver(flattened)
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_overlay.tif")
+    fs = FileSaver(outline)
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_outline.tif")
+    results.save(output_dir + title.replace(".czi", "") + "_results.csv")
+    results.reset()
+    summary.save(output_dir + imp.getTitle().replace(".czi", "") + "_summary.csv")
+
+    # close windows
+    image.changes = False
+    image.close()
+    dup.changes = False
+    dup.close()
+    outline.changes = False
+    outline.close()
+    results_window = WindowManager.getFrame("Results")
+    if results_window is not None:
+        results_window.close()
+    summary_window = WindowManager.getFrame("Summary")
+    if summary_window is not None:
+        summary_window.close()
 
 
 main()
