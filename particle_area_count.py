@@ -39,22 +39,22 @@ def apply_threshold(image, min):
 
 
 def analyze_particles(image, min_size, channel_num):
-    # set measurements
+    # Set measurements
     IJ.run(image, "Set Measurements...", "area mean redirect=[" + image.getTitle() + "]")
     # redirect to original image (to get the mean gray value)
     # area = area of particle in micrometers
     # mean = mean gray value (brightness aka intensity)
 
-    # analyze particles
+    # Analyze particles
     if channel_num == 0:
         IJ.run(image, "Analyze Particles...",
                "size={}-Infinity show=Outlines add display summarize include exclude redirect=[{}]".format(min_size,
                                                                                                            image.getTitle()))
-        # 0.1-Infinity = filters out noise, only counts particles greater than 0.1 µm^2
+        # {min_size}-Infinity = filters out noise, only counts particles greater than {min_size} µm^2
         # Outlines = shows image w/ outline and numbered particles
         # add = add to ROI manager
         # display = makes table of list of areas for each particle in an image
-        # summarize = summarizes data (count, total area, avg size, % area) for each image
+        # summarize = summarizes data (count, total area, avg size, % area, mean) for each image
         # exclude = excludes the particles on the edges (since their real size might be bigger/smaller --> not accurate)
         # include = include holes
     elif channel_num == 1:
@@ -78,35 +78,36 @@ def analyze_particles(image, min_size, channel_num):
     return outline, overlay, results, summary
 
 
+# channel_num starts at 0
 def analyze_channel(channel_num, image_titles, img_max, threshold_min, filter_min, output_dir):
-    title = image_titles[channel_num]  # 2nd channel
+    title = image_titles[channel_num]
     image = WindowManager.getImage(title)
 
     fs = FileSaver(image)
     fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_original.tif")  # save original image
 
-    # adjust brightness
+    # Adjust brightness
     edited_image = adjust_brightness(image, img_max)
     fs = FileSaver(edited_image)
     fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_edited.tif")  # save image with adjusted brightness
 
-    # create duplicate to apply threshold
+    # Create duplicate to apply threshold
     dup = image.duplicate()
     dup.show()
     WindowManager.setCurrentWindow(dup.getWindow())
 
-    # apply threshold
+    # Apply threshold
     apply_threshold(dup, threshold_min)
     fs = FileSaver(dup)
     fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_thresholded.tif")
 
-    # analyze particles
+    # Analyze particles
     outline, overlay, results, summary = analyze_particles(dup, filter_min, channel_num)
     edited_image.setOverlay(overlay)
     edited_image.updateAndDraw()
     flattened = edited_image.flatten()
 
-    # save results
+    # Save results
     fs = FileSaver(flattened)
     fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_overlay.tif")
     fs = FileSaver(outline)
@@ -114,7 +115,7 @@ def analyze_channel(channel_num, image_titles, img_max, threshold_min, filter_mi
     results.save(output_dir + title.replace(".czi", "") + "_results.csv")
     results.reset()
 
-    # close windows
+    # Close windows
     image.changes = False
     image.close()
     dup.changes = False
@@ -145,9 +146,11 @@ def main():
         IJ.run(imp, "Split Channels", "")
         image_titles = WindowManager.getImageTitles()
 
+    # Analyze channels
     analyze_channel(0, image_titles, C0_IMG_MAX, C0_THRESHOLD_MIN, C0_FILTER_MIN, output_dir)
     summary = analyze_channel(1, image_titles, C1_IMG_MAX, C1_THRESHOLD_MIN, C1_FILTER_MIN, output_dir)
 
+    # Save summary
     summary.save(output_dir + imp.getTitle().replace(".czi", "") + "_summary.csv")
     summary_window = WindowManager.getFrame("Summary")
     if summary_window is not None:
