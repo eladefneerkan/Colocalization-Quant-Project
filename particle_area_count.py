@@ -9,18 +9,18 @@ from ij.measure import ResultsTable
 from ij.gui import Overlay, Roi
 from ij.plugin.frame import RoiManager
 
-IMG_MAX = 75  # lower the max --> brighter the image is
-THRESHOLD_MIN = 60  # lower the threshold --> more particles it recognizes
+IMG_MAX = 75  # lower max to brighten image
+THRESHOLD_MIN = 20  # lower threshold to recognize more particles
 
 
 def adjust_brightness(image, max):
-    IJ.run(image, "8-bit", "")
-    ip = image.getProcessor()
+    edited_image = image.duplicate()
+    IJ.run(edited_image, "8-bit", "")
+    ip = edited_image.getProcessor()
     scale = 255 / (max - 0)
-    # ip.subtract(min)
     ip.multiply(scale)
-    image.updateAndDraw()
-    return image
+    edited_image.updateAndDraw()
+    return edited_image
 
 
 def apply_threshold(image, min):
@@ -43,7 +43,7 @@ def analyze_particles(image):
     # analyze particles
     IJ.run(image, "Analyze Particles...",
            "size=0.1-Infinity show=Outlines add display summarize include exclude redirect=[" + image.getTitle() + "]")
-    # 0.05-Infinity = filters out noise, only counts particles greater than 0.05
+    # 0.1-Infinity = filters out noise, only counts particles greater than 0.1 µm^2
     # Outlines = shows image w/ outline and numbered particles
     # add = add to ROI manager
     # display = makes table of list of areas for each particle in an image
@@ -83,8 +83,9 @@ def main():
         IJ.run(imp, "Split Channels", "")
         image_titles = WindowManager.getImageTitles()
 
-    title = image_titles[0]
+    title = image_titles[0]  # 1st channel
     image = WindowManager.getImage(title)
+
     fs = FileSaver(image)
     fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_original.tif")  # save original image
 
@@ -105,9 +106,9 @@ def main():
 
     # analyze particles
     outline, overlay, results, summary = analyze_particles(dup)
-    image.setOverlay(overlay)
-    image.updateAndDraw()
-    flattened = image.flatten()
+    edited_image.setOverlay(overlay)
+    edited_image.updateAndDraw()
+    flattened = edited_image.flatten()
 
     # save results
     fs = FileSaver(flattened)
