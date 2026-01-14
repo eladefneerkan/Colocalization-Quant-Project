@@ -9,12 +9,15 @@ from ij.measure import ResultsTable
 from ij.gui import Overlay, Roi
 from ij.plugin.frame import RoiManager
 
+IMG_MAX = 75  # lower the max --> brighter the image is
+THRESHOLD_MIN = 60  # lower the threshold --> more particles it recognizes
 
-def adjust_brightness(image, min, max):
+
+def adjust_brightness(image, max):
     IJ.run(image, "8-bit", "")
     ip = image.getProcessor()
-    scale = 255 / (max - min)
-    ip.subtract(min)
+    scale = 255 / (max - 0)
+    # ip.subtract(min)
     ip.multiply(scale)
     image.updateAndDraw()
     return image
@@ -86,7 +89,7 @@ def main():
     fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_original.tif")  # save original image
 
     # adjust brightness
-    edited_image = adjust_brightness(image, 0, 75)
+    edited_image = adjust_brightness(image, IMG_MAX)
     fs = FileSaver(edited_image)
     fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_edited.tif")  # save image with adjusted brightness
 
@@ -96,7 +99,7 @@ def main():
     WindowManager.setCurrentWindow(dup.getWindow())
 
     # apply threshold
-    apply_threshold(dup, 75)
+    apply_threshold(dup, THRESHOLD_MIN)
     fs = FileSaver(dup)
     fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_thresholded.tif")
 
