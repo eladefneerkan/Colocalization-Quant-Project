@@ -9,31 +9,23 @@ from ij.measure import ResultsTable
 from ij.gui import Overlay, Roi
 from ij.plugin.frame import RoiManager
 
-# Choose directory
-'''
-dc = DirectoryChooser("Choose folder to save output files in.")
-output_dir = dc.getDirectory()
 
-if output_dir is None:
-    raise ValueError("No output directory selected.")
-'''
-
-# Get input image
-imp = IJ.getImage()  # gets dragged-in image
-
-if imp.getNChannels() == 1:
-    image_titles = [imp.getTitle()]
-else:
-    IJ.run(imp, "Split Channels", "")
-    image_titles = WindowManager.getImageTitles()
+def adjust_brightness(image, min, max):
+    IJ.run(image, "8-bit", "")
+    ip = image.getProcessor()
+    scale = 255 / (max - min)
+    ip.subtract(min)
+    ip.multiply(scale)
+    image.updateAndDraw()
+    return image
 
 
-def apply_threshold():
+def apply_threshold(image, min):
     IJ.run("8-bit")
     IJ.run("Subtract Background...", "rolling=50")
-    ip = dup.getProcessor()
-    ip.setThreshold(20, 255)
-    dup.updateAndDraw()
+    ip = image.getProcessor()
+    ip.setThreshold(min, 255)
+    image.updateAndDraw()
     IJ.run("Convert to Mask")
 
 
@@ -62,44 +54,44 @@ def analyze_particles(image):
     return overlay
 
 
-''''    
-# Process images
-for title in image_titles:
-    image = WindowManager.getImage(title)
-    #IJ.run(image, "Apply LUT", "lut=Green")
-    fs = FileSaver(image)
-    #fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_original.tif")  # save original image
+def main():
+    # Choose directory
+    dc = DirectoryChooser("Choose folder to save output files in.")
+    output_dir = dc.getDirectory()
 
-    dup = image.duplicate()  # create duplicate so we keep the original image
+    if output_dir is None:
+        raise ValueError("No output directory selected.")
+
+    # Get input image
+    imp = IJ.getImage()  # gets dragged-in image
+
+    if imp.getNChannels() == 1:
+        image_titles = [imp.getTitle()]
+    else:
+        IJ.run(imp, "Split Channels", "")
+        image_titles = WindowManager.getImageTitles()
+
+    title = image_titles[0]
+    image = WindowManager.getImage(title)
+    fs = FileSaver(image)
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_original.tif")  # save original image
+
+    # adjust brightness
+    edited_image = adjust_brightness(image, 0, 75)
+    fs = FileSaver(edited_image)
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_edited.tif")  # save image with adjusted brightness
+
+    # create duplicate to edit on
+    dup = image.duplicate()
     dup.show()
     WindowManager.setCurrentWindow(dup.getWindow())
 
-    # set brightness
-    dup.setDisplayRange(0, 75) 
-    dup.updateAndDraw()
-
     # apply threshold
-    apply_threshold()
-    analyze_particles(dup)
-'''
+    apply_threshold(dup, 75)
+    overlay = analyze_particles(dup)
 
-image = WindowManager.getImage(image_titles[0])
+    image.setOverlay(overlay)
+    image.updateAndDraw()
 
-# set brightness
-IJ.run(image, "Apply LUT", "lut=Green")
-image.setDisplayRange(0, 75)
-image.updateAndDraw()
 
-fs = FileSaver(image)
-# fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_original.tif")  # save original image
-
-dup = image.duplicate()  # create duplicate so we keep the original image
-dup.show()
-WindowManager.setCurrentWindow(dup.getWindow())
-
-# apply threshold
-apply_threshold()
-overlay = analyze_particles(dup)
-
-image.setOverlay(overlay)
-image.updateAndDraw()
+main()
