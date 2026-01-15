@@ -1,7 +1,14 @@
-# Author: Lucia Liu
-# Purpose: Finds the number of particles and area of each particle for each channel in a .czi file
-# Notes: Image that is dragged in must be multi-channel
-# Last edited: 1/15/26
+'''
+Author: Lucia Liu
+Purpose: Finds the number of particles and area of each particle for each channel in a .czi file
+Notes:
+- Image that is dragged in must be multi-channel and .czi
+- For the output folder, can do 2 options:
+    Option 1: Choose a directory beforehand (uncomment out "Choose directory" code section)
+    Option 2: Let the script make a directory (paste your target base directory pathname where specified) --> easier for large batches
+- Sometimes if the output identify really abnormal large chunks, first try rerunning since it might be a system glitch
+Last edited: 1/15/26
+'''
 
 from ij import IJ, WindowManager, ImagePlus
 from ij.io import DirectoryChooser, FileSaver
@@ -9,6 +16,8 @@ from ij.measure import ResultsTable
 from ij.gui import Overlay, Roi
 from ij.plugin.frame import RoiManager
 from java.io import File
+
+BASE_DIR = "/Users/lucialiu/Downloads/2025.11.12 chow-DDC diet 6wks p62/czi/40X"  # Replace with base folder directory (just copy pathname)
 
 C0_IMG_MAX = 75  # lower max to brighten image
 C0_THRESHOLD_MIN = 20  # lower threshold to recognize more particles
@@ -56,14 +65,13 @@ def analyze_particles(image, min_size, channel_num):
     # Analyze particles
     if channel_num == 0:
         IJ.run(image, "Analyze Particles...",
-               "size={}-Infinity show=Outlines add display summarize include exclude redirect=[{}]".format(min_size,
-                                                                                                           image.getTitle()))
+               "size={}-Infinity show=Outlines add display summarize include redirect=[{}]".format(min_size,
+                                                                                                   image.getTitle()))
         # {min_size}-Infinity = filters out noise, only counts particles greater than {min_size} µm^2
         # Outlines = shows image w/ outline and numbered particles
         # add = add to ROI manager
         # display = makes table of list of areas for each particle in an image
         # summarize = summarizes data (count, total area, avg size, % area, mean) for each image
-        # exclude = excludes the particles on the edges (since their real size might be bigger/smaller --> not accurate)
         # include = include holes
     elif channel_num == 1:
         IJ.run(image, "Analyze Particles...",
@@ -167,9 +175,11 @@ def main():
         IJ.run(imp, "Split Channels", "")
         image_titles = WindowManager.getImageTitles()
 
+    if not imp.getTitle().lower().endswith(".czi"):
+        raise ValueError("Incompatible file type - must be a two-channel .czi file")
+
     # Make new directory
-    base_dir = "/Users/lucialiu/Downloads/2025.11.12 chow-DDC diet 6wks p62/czi/40X"  # Replace with base folder directory (just copy pathname)
-    output_dir = File(base_dir + File.separator + imp.getTitle().replace(".czi", "") + "_output")
+    output_dir = File(BASE_DIR + File.separator + imp.getTitle().replace(".czi", "") + "_output")
     output_dir.mkdirs()
     output_dir = output_dir.getAbsolutePath() + File.separator
 
