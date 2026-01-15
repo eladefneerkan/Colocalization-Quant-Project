@@ -1,13 +1,14 @@
 # Author: Lucia Liu
 # Purpose: Finds the number of particles and area of each particle for each channel in a .czi file
 # Notes: Image that is dragged in must be multi-channel
-# Last edited: 1/13/26
+# Last edited: 1/15/26
 
 from ij import IJ, WindowManager, ImagePlus
 from ij.io import DirectoryChooser, FileSaver
 from ij.measure import ResultsTable
 from ij.gui import Overlay, Roi
 from ij.plugin.frame import RoiManager
+from java.io import File
 
 C0_IMG_MAX = 75  # lower max to brighten image
 C0_THRESHOLD_MIN = 20  # lower threshold to recognize more particles
@@ -38,6 +39,13 @@ def apply_threshold(image, min):
     return image
 
 
+def add_scale_bar(img, color):
+    dup = img.duplicate()
+    WindowManager.setCurrentWindow(dup.getWindow())
+    IJ.run(dup, "Scale Bar...", "width=20 height=4 thickness=8 font=30 color={} location=[Lower Right]".format(color))
+    return dup
+
+
 def analyze_particles(image, min_size, channel_num):
     # Set measurements
     IJ.run(image, "Set Measurements...", "area mean redirect=[" + image.getTitle() + "]")
@@ -64,6 +72,8 @@ def analyze_particles(image, min_size, channel_num):
         return None
 
     outline = WindowManager.getCurrentImage()
+    results = ResultsTable.getResultsTable()
+    summary = ResultsTable.getResultsTable("Summary")
 
     overlay = Overlay()
     rm = RoiManager.getInstance()
@@ -72,9 +82,6 @@ def analyze_particles(image, min_size, channel_num):
     rm.reset()
     rm.setVisible(False)
 
-    results = ResultsTable.getResultsTable()
-    summary = ResultsTable.getResultsTable("Summary")
-
     return outline, overlay, results, summary
 
 
@@ -82,14 +89,11 @@ def analyze_particles(image, min_size, channel_num):
 def analyze_channel(channel_num, image_titles, img_max, threshold_min, filter_min, output_dir):
     title = image_titles[channel_num]
     image = WindowManager.getImage(title)
-
-    fs = FileSaver(image)
-    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_original.tif")  # save original image
+    image.show()
 
     # Adjust brightness
     edited_image = adjust_brightness(image, img_max)
-    fs = FileSaver(edited_image)
-    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_edited.tif")  # save image with adjusted brightness
+    edited_image.show()
 
     # Create duplicate to apply threshold
     dup = image.duplicate()
@@ -97,31 +101,46 @@ def analyze_channel(channel_num, image_titles, img_max, threshold_min, filter_mi
     WindowManager.setCurrentWindow(dup.getWindow())
 
     # Apply threshold
-    apply_threshold(dup, threshold_min)
-    fs = FileSaver(dup)
-    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_thresholded.tif")
+    threshold = apply_threshold(dup, threshold_min)
+    threshold.show()
 
     # Analyze particles
     outline, overlay, results, summary = analyze_particles(dup, filter_min, channel_num)
     edited_image.setOverlay(overlay)
     edited_image.updateAndDraw()
     flattened = edited_image.flatten()
+    flattened.show()
 
-    # Save results
-    fs = FileSaver(flattened)
-    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_overlay.tif")
-    fs = FileSaver(outline)
-    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_outline.tif")
+    # Save files
+    fs = FileSaver(add_scale_bar(image, "White"))
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_original.tif")  # save original image
+
+    fs = FileSaver(add_scale_bar(edited_image, "White"))
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_edited.tif")  # save image with adjusted brightness
+
+    fs = FileSaver(add_scale_bar(threshold, "White"))
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_thresholded.tif")  # save thresholded image
+
+    fs = FileSaver(add_scale_bar(flattened, "White"))
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_overlay.tif")  # save overlay
+
+    fs = FileSaver(add_scale_bar(outline, "Black"))
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_outline.tif")  # save outline
+
     results.save(output_dir + title.replace(".czi", "") + "_results.csv")
     results.reset()
 
     # Close windows
     image.changes = False
     image.close()
+    edited_image.changes = False
+    edited_image.close()
     dup.changes = False
     dup.close()
     outline.changes = False
     outline.close()
+    flattened.changes = False
+    flattened.close()
     results_window = WindowManager.getFrame("Results")
     if results_window is not None:
         results_window.close()
@@ -130,12 +149,14 @@ def analyze_channel(channel_num, image_titles, img_max, threshold_min, filter_mi
 
 
 def main():
+    '''
     # Choose directory
     dc = DirectoryChooser("Choose folder to save output files in.")
     output_dir = dc.getDirectory()
 
     if output_dir is None:
         raise ValueError("No output directory selected.")
+    '''
 
     # Get input image
     imp = IJ.getImage()  # gets dragged-in image
@@ -146,6 +167,12 @@ def main():
         IJ.run(imp, "Split Channels", "")
         image_titles = WindowManager.getImageTitles()
 
+    # Make new directory
+    base_dir = "/Users/lucialiu/Downloads/2025.11.12 chow-DDC diet 6wks p62/czi/40X"  # Replace with base folder directory (just copy pathname)
+    output_dir = File(base_dir + File.separator + imp.getTitle().replace(".czi", "") + "_output")
+    output_dir.mkdirs()
+    output_dir = output_dir.getAbsolutePath() + File.separator
+
     # Analyze channels
     analyze_channel(0, image_titles, C0_IMG_MAX, C0_THRESHOLD_MIN, C0_FILTER_MIN, output_dir)
     summary = analyze_channel(1, image_titles, C1_IMG_MAX, C1_THRESHOLD_MIN, C1_FILTER_MIN, output_dir)
@@ -155,5 +182,6 @@ def main():
     summary_window = WindowManager.getFrame("Summary")
     if summary_window is not None:
         summary_window.close()
+
 
 main()
