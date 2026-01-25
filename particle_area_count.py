@@ -4,7 +4,7 @@ Purpose: Finds the number of particles and area of each particle for each channe
 Notes:
 - Image that is dragged in must be multi-channel and .czi
 - For the output folder, can do 2 options:
-    Option 1: Choose a directory beforehand (uncomment out "Choose directory" code section)
+    Option 1: Choose a directory beforehand (uncomment out "Choose directory" code section) and comment out "Make directory" section
     Option 2: Let the script make a directory (paste your target base directory pathname where specified) --> easier for large batches
 - Sometimes if the output identify really abnormal large chunks, first try rerunning since it might be a system glitch
 Last edited: 1/15/26
@@ -17,16 +17,15 @@ from ij.gui import Overlay, Roi
 from ij.plugin.frame import RoiManager
 from java.io import File
 
-BASE_DIR = "/Users/lucialiu/Downloads/2025.11.12 chow-DDC diet 6wks p62/czi/40X"  # Replace with base folder directory (just copy pathname)
+BASE_DIR = '/Users/lucialiu/Downloads/2025.12.16 Ctrl-SHKBP1 DDC diet 2wks p62/czi/40x' # Replace with base folder directory (just copy pathname)
 
-C0_IMG_MAX = 75  # lower max to brighten image
-C0_THRESHOLD_MIN = 20  # lower threshold to recognize more particles
+C0_IMG_MAX = 80 # lower max to brighten image
+C0_THRESHOLD_MIN = 17 # lower threshold to recognize more particles - originally 20 for other folder, 18
 C0_FILTER_MIN = 0.1
 
-C1_IMG_MAX = 40  # lower max to brighten image
-C1_THRESHOLD_MIN = 5  # lower threshold to recognize more particles
-C1_FILTER_MIN = 2
-
+C1_IMG_MAX = 120 # lower max to brighten image - originally 40 for other folder, 70 (ddc), 80 (chow)
+C1_THRESHOLD_MIN = 9 # lower threshold to recognize more particles - originally 5 for other folder, 7
+C1_FILTER_MIN = 5
 
 def adjust_brightness(image, max):
     edited_image = image.duplicate()
@@ -37,7 +36,6 @@ def adjust_brightness(image, max):
     edited_image.updateAndDraw()
     return edited_image
 
-
 def apply_threshold(image, min):
     IJ.run("8-bit")
     IJ.run("Subtract Background...", "rolling=50")
@@ -47,32 +45,29 @@ def apply_threshold(image, min):
     IJ.run("Convert to Mask")
     return image
 
-
 def add_scale_bar(img, color):
     dup = img.duplicate()
     WindowManager.setCurrentWindow(dup.getWindow())
     IJ.run(dup, "Scale Bar...", "width=20 height=4 thickness=8 font=30 color={} location=[Lower Right]".format(color))
     return dup
 
-
 def analyze_particles(image, min_size, channel_num):
     # Set measurements
     IJ.run(image, "Set Measurements...", "area mean redirect=[" + image.getTitle() + "]")
-    # redirect to original image (to get the mean gray value)
-    # area = area of particle in micrometers
-    # mean = mean gray value (brightness aka intensity)
+	    # redirect to original image (to get the mean gray value)
+	    # area = area of particle in micrometers
+	    # mean = mean gray value (brightness aka intensity)
 
-    # Analyze particles
+	# Analyze particles
     if channel_num == 0:
         IJ.run(image, "Analyze Particles...",
-               "size={}-Infinity show=Outlines add display summarize include redirect=[{}]".format(min_size,
-                                                                                                   image.getTitle()))
-        # {min_size}-Infinity = filters out noise, only counts particles greater than {min_size} µm^2
-        # Outlines = shows image w/ outline and numbered particles
-        # add = add to ROI manager
-        # display = makes table of list of areas for each particle in an image
-        # summarize = summarizes data (count, total area, avg size, % area, mean) for each image
-        # include = include holes
+               "size={}-Infinity show=Outlines add display summarize include redirect=[{}]".format(min_size, image.getTitle()))
+                # {min_size}-Infinity = filters out noise, only counts particles greater than {min_size} µm^2
+                # Outlines = shows image w/ outline and numbered particles
+                # add = add to ROI manager
+                # display = makes table of list of areas for each particle in an image
+                # summarize = summarizes data (count, total area, avg size, % area, mean) for each image
+                # include = include holes
     elif channel_num == 1:
         IJ.run(image, "Analyze Particles...",
                "size={}-Infinity show=Outlines add display summarize redirect=[{}]".format(min_size, image.getTitle()))
@@ -114,10 +109,16 @@ def analyze_channel(channel_num, image_titles, img_max, threshold_min, filter_mi
 
     # Analyze particles
     outline, overlay, results, summary = analyze_particles(dup, filter_min, channel_num)
-    edited_image.setOverlay(overlay)
-    edited_image.updateAndDraw()
-    flattened = edited_image.flatten()
-    flattened.show()
+    if channel_num == 0:
+        edited_image.setOverlay(overlay)
+        edited_image.updateAndDraw()
+        flattened = edited_image.flatten()
+        flattened.show()
+    elif channel_num == 1:
+        image.setOverlay(overlay)
+        image.updateAndDraw()
+        flattened = image.flatten()
+        flattened.show()
 
     # Save files
     fs = FileSaver(add_scale_bar(image, "White"))
@@ -127,13 +128,13 @@ def analyze_channel(channel_num, image_titles, img_max, threshold_min, filter_mi
     fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_edited.tif")  # save image with adjusted brightness
 
     fs = FileSaver(add_scale_bar(threshold, "White"))
-    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_thresholded.tif")  # save thresholded image
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_thresholded.tif") # save thresholded image
 
     fs = FileSaver(add_scale_bar(flattened, "White"))
-    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_overlay.tif")  # save overlay
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_overlay.tif") # save overlay
 
     fs = FileSaver(add_scale_bar(outline, "Black"))
-    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_outline.tif")  # save outline
+    fs.saveAsTiff(output_dir + title.replace(".czi", "") + "_outline.tif") # save outline
 
     results.save(output_dir + title.replace(".czi", "") + "_results.csv")
     results.reset()
@@ -155,7 +156,6 @@ def analyze_channel(channel_num, image_titles, img_max, threshold_min, filter_mi
 
     return summary
 
-
 def main():
     '''
     # Choose directory
@@ -167,7 +167,7 @@ def main():
     '''
 
     # Get input image
-    imp = IJ.getImage()  # gets dragged-in image
+    imp = IJ.getImage() # gets dragged-in image
 
     if imp.getNChannels() == 1:
         image_titles = [imp.getTitle()]
@@ -178,7 +178,7 @@ def main():
     if not imp.getTitle().lower().endswith(".czi"):
         raise ValueError("Incompatible file type - must be a two-channel .czi file")
 
-    # Make new directory
+    # Make new directory - Comment out if you want to choose directory instead
     output_dir = File(BASE_DIR + File.separator + imp.getTitle().replace(".czi", "") + "_output")
     output_dir.mkdirs()
     output_dir = output_dir.getAbsolutePath() + File.separator
@@ -192,6 +192,5 @@ def main():
     summary_window = WindowManager.getFrame("Summary")
     if summary_window is not None:
         summary_window.close()
-
 
 main()
